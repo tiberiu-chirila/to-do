@@ -2,7 +2,7 @@ import { getDatabase, ref, set, onValue, push, update, remove } from "firebase/d
 
 const tableName = "items";
 
-export function addItem(content) {
+export function addItem(content, imageUrl) {
   const db = getDatabase();
   const now = Date.now();
   const id = push(ref(db, tableName)).key;
@@ -11,6 +11,7 @@ export function addItem(content) {
     id: id,
     content: content,
     checked: false,
+    imageUrl: imageUrl,
     dateCreated: now,
   });
 }
@@ -39,6 +40,7 @@ export function streamItems(callback) {
         id: item.id,
         content: item.content,
         checked: item.checked,
+        imageUrl: item.imageUrl,
         dateCreated: item.dateCreated,
       }));
 

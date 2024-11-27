@@ -1,5 +1,5 @@
 import { store } from "./firebase";
-import { collection, doc, getDoc, addDoc, updateDoc, query, serverTimestamp, where, getDocs } from "firebase/firestore";
+import { collection, getDoc, addDoc, updateDoc, query, serverTimestamp, where, getDocs } from "firebase/firestore";
 
 const userCollection = collection(store, "users");
 
