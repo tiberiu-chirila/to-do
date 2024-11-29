@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { addItem, updateItemCheck, deleteItem, streamItems } from "./rtdbCalls";
-import "./App.css";
+// import "./App.css";
 import { useNavigate } from "react-router-dom";
 import { upload } from "./storage";
 
