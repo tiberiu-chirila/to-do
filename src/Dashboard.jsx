@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 
 const styles = {
   container: {
@@ -34,7 +35,7 @@ const styles = {
     height: "100%",
     boxSizing: "border-box",
   },
-  header: {
+  pageHeader: {
     border: "2px solid black",
     borderRadius: "5px",
     marginLeft: "auto",
@@ -52,12 +53,10 @@ const styles = {
     width: "100%",
     height: "100%",
     margin: "4px",
-    border: "2px solid green",
     overflowY: "auto",
     boxSizing: "border-box",
   },
   panelSubSection: {
-    border: "2px solid blue",
     width: "calc(100% - 16px)",
     margin: "4px",
   },
@@ -93,6 +92,13 @@ const styles = {
     margin: "4px",
     boxSizing: "border-box",
   },
+  panelHeader: {
+    backgroundColor: "#F7DF9C",
+    height: "40px",
+    marginBottom: "10px",
+    display: "flex",
+    alignItems: "center",
+  },
   notifications: {
     border: "2px solid black",
     borderRadius: "5px",
@@ -101,6 +107,14 @@ const styles = {
     minWidth: "400px",
     margin: "4px",
     boxSizing: "border-box",
+  },
+  notficationItem: {
+    height: "40px",
+    width: "calc(100% - 12px)",
+    backgroundColor: "rgba(181, 40, 40, 0.6)",
+    boxSizing: "border-box",
+    padding: "4px",
+    margin: "6px",
   },
 };
 
@@ -116,38 +130,62 @@ export default function Dashboard() {
           <div style={styles.menuItem}>Sites Management</div>
         </div>
         <div style={styles.content}>
-          <div style={styles.header}>Hi, Dan</div>
+          <div style={styles.pageHeader}>Hi, Dan</div>
           <div style={styles.body}>
             <div style={styles.panelSection}>
               <ExpandableSubSection title="Pinned Panels" expandedInitially={true}>
-                <ScrollablePanels>
+                <ScrollableArea>
                   <PinnedPanels />
-                </ScrollablePanels>
+                </ScrollableArea>
               </ExpandableSubSection>
               <ExpandableSubSection title="Operations">
-                <ScrollablePanels>
-                  <Panel title="Booking Analytics">Content</Panel>
-                  <Panel title="Driver Analytics">Content</Panel>
-                  <Panel title="Driver Support">Content</Panel>
-                  <Panel title="Customer Analytics">Content</Panel>
-                  <Panel title="Customer Support">Content</Panel>
-                </ScrollablePanels>
+                <ScrollableArea>
+                  <Panel id="ops-01" title="Booking Analytics">
+                    Content
+                  </Panel>
+                  <Panel id="ops-02" title="Driver Analytics">
+                    Content
+                  </Panel>
+                  <Panel id="ops-03" title="Driver Support">
+                    Content
+                  </Panel>
+                  <Panel id="ops-04" title="Customer Analytics">
+                    Content
+                  </Panel>
+                  <Panel id="ops-05" title="Customer Support">
+                    Content
+                  </Panel>
+                </ScrollableArea>
               </ExpandableSubSection>
               <ExpandableSubSection title="Sales">
-                <ScrollablePanels>
-                  <Panel title="Sales Panel 1">Content</Panel>
-                  <Panel title="Sales Panel 2">Content</Panel>
-                  <Panel title="Sales Panel 3">Content</Panel>
-                </ScrollablePanels>
+                <ScrollableArea>
+                  <Panel id="sales-01" title="Sales Panel 1">
+                    Content
+                  </Panel>
+                  <Panel id="sales-02" title="Sales Panel 2">
+                    Content
+                  </Panel>
+                  <Panel id="sales-03" title="Sales Panel 3">
+                    Content
+                  </Panel>
+                </ScrollableArea>
               </ExpandableSubSection>
               <ExpandableSubSection title="Finance">
-                <ScrollablePanels>
-                  <Panel title="Finance Panel 1">Content</Panel>
-                  <Panel title="Finance Panel 2">Content</Panel>
-                </ScrollablePanels>
+                <ScrollableArea>
+                  <Panel id="finance-01" title="Finance Panel 1">
+                    Content
+                  </Panel>
+                  <Panel id="finance-02" title="Finance Panel 2">
+                    Content
+                  </Panel>
+                </ScrollableArea>
               </ExpandableSubSection>
             </div>
-            <div style={styles.notifications}>Notification Timeline</div>
+            <div style={styles.notifications}>
+              <div style={styles.notficationItem}>Emergency Notification 1</div>
+              <div style={styles.notficationItem}>Emergency Notification 2</div>
+              <div style={styles.notficationItem}>Emergency Notification 3</div>
+            </div>
           </div>
         </div>
       </div>
@@ -169,7 +207,7 @@ function ExpandableSubSection({ title, expandedInitially = false, children }) {
   );
 }
 
-function ScrollablePanels({ children }) {
+function ScrollableArea({ children }) {
   const scrollRef = useRef(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
 
@@ -211,14 +249,14 @@ function ScrollablePanels({ children }) {
   );
 }
 
-function Panel({ title, children }) {
+function Panel({ id, title, children }) {
   const { pinnedPanels, togglePin } = usePinned();
   const isPinned = pinnedPanels.some((panel) => panel.title === title);
 
   return (
     <div style={styles.panel}>
-      <div>
-        <input type="checkbox" checked={isPinned} onChange={() => togglePin({ title, children })} />
+      <div style={styles.panelHeader}>
+        <input type="checkbox" checked={isPinned} onChange={() => togglePin({ id: `pin-${id}`, title, children })} />
         <strong>{title}</strong>
       </div>
       {children}
@@ -237,7 +275,14 @@ function PinnedProvider({ children }) {
     );
   };
 
-  return <PinnedContext.Provider value={{ pinnedPanels, togglePin }}>{children}</PinnedContext.Provider>;
+  const movePanel = (sourceIndex, destinationIndex) => {
+    const reorderedPanels = [...pinnedPanels];
+    const [movedPanel] = reorderedPanels.splice(sourceIndex, 1);
+    reorderedPanels.splice(destinationIndex, 0, movedPanel);
+    setPinnedPanels(reorderedPanels);
+  };
+
+  return <PinnedContext.Provider value={{ pinnedPanels, togglePin, movePanel }}>{children}</PinnedContext.Provider>;
 }
 
 function usePinned() {
@@ -245,7 +290,67 @@ function usePinned() {
 }
 
 function PinnedPanels() {
-  const { pinnedPanels } = usePinned();
+  let { pinnedPanels, movePanel } = usePinned();
 
-  return pinnedPanels.map(({ title, children }) => <Panel title={title}>{children}</Panel>);
+  const onDragEnd = (result) => {
+    const { source, destination, type } = result;
+
+    if (!destination || (source.droppableId === destination.droppableId && source.index === destination.index)) {
+      return;
+    }
+
+    if (type === "PINNED") {
+      movePanel(source.index, destination.index);
+    }
+  };
+
+  return (
+    <DragDropContext onDragEnd={onDragEnd}>
+      <StrictModeDroppable droppableId="PINNED-PANELS" type="PINNED">
+        {(provided) => (
+          <div
+            {...provided.droppableProps}
+            ref={provided.innerRef}
+            style={{ display: "flex", flexWrap: "wrap", flexDirection: "row" }}
+          >
+            {pinnedPanels.map((panel, index) => (
+              <Draggable key={panel.id} draggableId={panel.id} index={index}>
+                {(provided) => (
+                  <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
+                    <Panel id={panel.id} title={panel.title} index={index}>
+                      {panel.children}
+                    </Panel>
+                  </div>
+                )}
+              </Draggable>
+            ))}
+            {provided.placeholder}
+          </div>
+        )}
+      </StrictModeDroppable>
+    </DragDropContext>
+  );
 }
+
+const StrictModeDroppable = ({ droppableId, type, children }) => {
+  const [enabled, setEnabled] = useState(false);
+
+  useEffect(() => {
+    const animation = requestAnimationFrame(() => setEnabled(true));
+
+    return () => {
+      cancelAnimationFrame(animation);
+      setEnabled(false);
+    };
+  }, []);
+
+  if (!enabled) {
+    return null;
+  }
+
+  return (
+    <Droppable droppableId={droppableId} type={type} direction="horizontal" ignoreContainerClipping={true}>
+      {children}
+    </Droppable>
+  );
+};
