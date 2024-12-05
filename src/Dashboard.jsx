@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import { GridContextProvider, GridDropZone, GridItem, swap } from "react-grid-dnd";
 
 const styles = {
   container: {
@@ -134,9 +134,7 @@ export default function Dashboard() {
           <div style={styles.body}>
             <div style={styles.panelSection}>
               <ExpandableSubSection title="Pinned Panels" expandedInitially={true}>
-                <ScrollableArea>
-                  <PinnedPanels />
-                </ScrollableArea>
+                <PinnedPanels />
               </ExpandableSubSection>
               <ExpandableSubSection title="Operations">
                 <ScrollableArea>
@@ -276,10 +274,9 @@ function PinnedProvider({ children }) {
   };
 
   const movePanel = (sourceIndex, destinationIndex) => {
-    const reorderedPanels = [...pinnedPanels];
-    const [movedPanel] = reorderedPanels.splice(sourceIndex, 1);
-    reorderedPanels.splice(destinationIndex, 0, movedPanel);
-    setPinnedPanels(reorderedPanels);
+    const initialPanelOrder = [...pinnedPanels];
+    const finalPanelOrder = swap(initialPanelOrder, sourceIndex, destinationIndex);
+    setPinnedPanels(finalPanelOrder);
   };
 
   return <PinnedContext.Provider value={{ pinnedPanels, togglePin, movePanel }}>{children}</PinnedContext.Provider>;
@@ -291,66 +288,50 @@ function usePinned() {
 
 function PinnedPanels() {
   let { pinnedPanels, movePanel } = usePinned();
+  const [ref, width] = useResizeObserver();
+  const itemsPerRow = Math.max(1, Math.floor(width / 408));
 
-  const onDragEnd = (result) => {
-    const { source, destination, type } = result;
-
-    if (!destination || (source.droppableId === destination.droppableId && source.index === destination.index)) {
-      return;
-    }
-
-    if (type === "PINNED") {
-      movePanel(source.index, destination.index);
-    }
+  const onChange = (sourceId, sourceIndex, targetIndex, targetId) => {
+    movePanel(sourceIndex, targetIndex);
   };
 
   return (
-    <DragDropContext onDragEnd={onDragEnd}>
-      <StrictModeDroppable droppableId="PINNED-PANELS" type="PINNED">
-        {(provided) => (
-          <div
-            {...provided.droppableProps}
-            ref={provided.innerRef}
-            style={{ display: "flex", flexWrap: "wrap", flexDirection: "row" }}
-          >
-            {pinnedPanels.map((panel, index) => (
-              <Draggable key={panel.id} draggableId={panel.id} index={index}>
-                {(provided) => (
-                  <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
-                    <Panel id={panel.id} title={panel.title} index={index}>
-                      {panel.children}
-                    </Panel>
-                  </div>
-                )}
-              </Draggable>
-            ))}
-            {provided.placeholder}
-          </div>
-        )}
-      </StrictModeDroppable>
-    </DragDropContext>
+    <GridContextProvider onChange={onChange}>
+      <div ref={ref}>
+        <GridDropZone
+          id="PINNED-PANELS"
+          boxesPerRow={itemsPerRow}
+          rowHeight={408}
+          style={{ height: 408 * Math.ceil(pinnedPanels.length / itemsPerRow) }}
+        >
+          {pinnedPanels.map((panel) => (
+            <GridItem key={panel.id}>
+              <Panel id={panel.id} title={panel.title}>
+                {panel.children}
+              </Panel>
+            </GridItem>
+          ))}
+        </GridDropZone>
+      </div>
+    </GridContextProvider>
   );
 }
 
-const StrictModeDroppable = ({ droppableId, type, children }) => {
-  const [enabled, setEnabled] = useState(false);
+const useResizeObserver = () => {
+  const ref = useRef();
+  const [width, setWidth] = useState(0);
 
   useEffect(() => {
-    const animation = requestAnimationFrame(() => setEnabled(true));
+    const resizeObserver = new ResizeObserver((entries) => {
+      if (entries[0]) {
+        setWidth(entries[0].contentRect.width);
+      }
+    });
 
-    return () => {
-      cancelAnimationFrame(animation);
-      setEnabled(false);
-    };
-  }, []);
+    if (ref.current) {
+      resizeObserver.observe(ref.current);
+    }
+  }, [ref]);
 
-  if (!enabled) {
-    return null;
-  }
-
-  return (
-    <Droppable droppableId={droppableId} type={type} direction="horizontal" ignoreContainerClipping={true}>
-      {children}
-    </Droppable>
-  );
+  return [ref, width];
 };
