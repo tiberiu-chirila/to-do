@@ -68,6 +68,12 @@ const styles = {
     display: "flex",
     alignItems: "center",
   },
+  pinnedPanels: {
+    display: "grid",
+    width: "100%",
+    gap: "8px",
+    gridTemplateColumns: "400px repeat(auto-fill, 400px) 400px",
+  },
   chevron: {
     marginRight: "10px",
     cursor: "pointer",
@@ -117,20 +123,54 @@ const styles = {
     minWidth: "400px",
     margin: "4px",
     boxSizing: "border-box",
+    overflowY: "auto",
   },
   notficationItem: {
-    height: "40px",
+    minHeight: "40px",
     width: "calc(100% - 12px)",
     backgroundColor: "rgba(181, 40, 40, 0.6)",
     boxSizing: "border-box",
     padding: "4px",
     margin: "6px",
+    cursor: "pointer",
   },
 };
 
 const PinnedContext = createContext();
 
+const notificationStates = {
+  unassigned: 1,
+  assigned: 2,
+  resolved: 3,
+};
+
+const notifications = [
+  { content: "Emergency Notification. House is on fire yo and this message needs to be long. Click me to update." },
+  { content: "Emergency Notification. House is on fire yo and this message needs to be long. Click me to update." },
+  { content: "Emergency Notification. House is on fire yo and this message needs to be long. Click me to update." },
+  { content: "Emergency Notification. House is on fire yo and this message needs to be long. Click me to update." },
+  { content: "Emergency Notification. House is on fire yo and this message needs to be long. Click me to update." },
+  { content: "Emergency Notification. House is on fire yo and this message needs to be long. Click me to update." },
+  { content: "Emergency Notification. House is on fire yo and this message needs to be long. Click me to update." },
+  { content: "Emergency Notification. House is on fire yo and this message needs to be long. Click me to update." },
+  { content: "Emergency Notification. House is on fire yo and this message needs to be long. Click me to update." },
+  { content: "Emergency Notification. House is on fire yo and this message needs to be long. Click me to update." },
+  { content: "Emergency Notification. House is on fire yo and this message needs to be long. Click me to update." },
+  { content: "Emergency Notification. House is on fire yo and this message needs to be long. Click me to update." },
+  { content: "Emergency Notification. House is on fire yo and this message needs to be long. Click me to update." },
+  { content: "Emergency Notification. House is on fire yo and this message needs to be long. Click me to update." },
+  { content: "Emergency Notification. House is on fire yo and this message needs to be long. Click me to update." },
+  { content: "Emergency Notification. House is on fire yo and this message needs to be long. Click me to update." },
+  { content: "Emergency Notification. House is on fire yo and this message needs to be long. Click me to update." },
+  { content: "Emergency Notification. House is on fire yo and this message needs to be long. Click me to update." },
+  { content: "Emergency Notification. House is on fire yo and this message needs to be long. Click me to update." },
+  { content: "Emergency Notification. House is on fire yo and this message needs to be long. Click me to update." },
+  { content: "Emergency Notification. House is on fire yo and this message needs to be long. Click me to update." },
+];
+
 export default function Dashboard() {
+  const user = { id: "usr-id", alias: "Dan" };
+
   return (
     <PinnedProvider>
       <div style={styles.container}>
@@ -147,7 +187,7 @@ export default function Dashboard() {
                 <PinnedPanels />
               </ExpandableSubSection>
               <ExpandableSubSection title="Operations">
-                <ScrollableArea>
+                <HorizontalScrollableArea>
                   <Panel id="ops-01" title="Booking Analytics">
                     Content
                   </Panel>
@@ -163,10 +203,10 @@ export default function Dashboard() {
                   <Panel id="ops-05" title="Customer Support">
                     Content
                   </Panel>
-                </ScrollableArea>
+                </HorizontalScrollableArea>
               </ExpandableSubSection>
               <ExpandableSubSection title="Sales">
-                <ScrollableArea>
+                <HorizontalScrollableArea>
                   <Panel id="sales-01" title="Sales Panel 1">
                     Content
                   </Panel>
@@ -176,23 +216,23 @@ export default function Dashboard() {
                   <Panel id="sales-03" title="Sales Panel 3">
                     Content
                   </Panel>
-                </ScrollableArea>
+                </HorizontalScrollableArea>
               </ExpandableSubSection>
               <ExpandableSubSection title="Finance">
-                <ScrollableArea>
+                <HorizontalScrollableArea>
                   <Panel id="finance-01" title="Finance Panel 1">
                     Content
                   </Panel>
                   <Panel id="finance-02" title="Finance Panel 2">
                     Content
                   </Panel>
-                </ScrollableArea>
+                </HorizontalScrollableArea>
               </ExpandableSubSection>
             </div>
             <div style={styles.notifications}>
-              <div style={styles.notficationItem}>Emergency Notification 1</div>
-              <div style={styles.notficationItem}>Emergency Notification 2</div>
-              <div style={styles.notficationItem}>Emergency Notification 3</div>
+              {notifications.map((notification) => (
+                <Notification user={user} content={notification.content} />
+              ))}
             </div>
           </div>
         </div>
@@ -215,7 +255,7 @@ function ExpandableSubSection({ title, expandedInitially = false, children }) {
   );
 }
 
-function ScrollableArea({ children }) {
+function HorizontalScrollableArea({ children }) {
   const scrollRef = useRef(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
 
@@ -326,14 +366,7 @@ function PinnedPanels() {
       onDragEnd={handleDragEnd}
       onDragStart={handleDragStart}
     >
-      <div
-        style={{
-          display: "grid",
-          width: "100%",
-          gap: "8px",
-          gridTemplateColumns: "400px repeat(auto-fill, 400px) 400px",
-        }}
-      >
+      <div style={styles.pinnedPanels}>
         <SortableContext items={pinnedPanels} strategy={rectSortingStrategy}>
           {pinnedPanels.map((panel) => (
             <MovablePanel id={panel.id} title={panel.title}>
@@ -376,6 +409,32 @@ function MovablePanel({ id, title, children }) {
         </div>
       </div>
       {children}
+    </div>
+  );
+}
+
+function Notification({ content, user }) {
+  const [notState, setNotState] = useState(notificationStates.unassigned);
+  const [stateContent, setStateContent] = useState("UNASSIGNED");
+
+  const handleClick = () => {
+    if (notState === notificationStates.unassigned) {
+      setNotState(notificationStates.assigned);
+      setStateContent(`ASSIGNED: ${user.alias}`);
+    }
+
+    if (notState === notificationStates.assigned) {
+      setNotState(notificationStates.resolved);
+      setStateContent(`RESOLVED: ${user.alias}`);
+    }
+  };
+
+  return (
+    <div style={styles.notficationItem} onClick={() => handleClick()}>
+      <div>
+        <div>{content}</div>
+        <div style={{ color: "yellow" }}>{stateContent}</div>
+      </div>
     </div>
   );
 }
