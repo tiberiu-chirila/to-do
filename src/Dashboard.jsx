@@ -1,5 +1,8 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { GridContextProvider, GridDropZone, GridItem, swap } from "react-grid-dnd";
+import { DndContext, closestCenter, MouseSensor, TouchSensor, DragOverlay, useSensor, useSensors } from "@dnd-kit/core";
+import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
+
+import { CSS } from "@dnd-kit/utilities";
 
 const styles = {
   container: {
@@ -98,6 +101,13 @@ const styles = {
     marginBottom: "10px",
     display: "flex",
     alignItems: "center",
+  },
+  movableArea: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    display: "flex",
+    cursor: "move",
   },
   notifications: {
     border: "2px solid black",
@@ -273,10 +283,17 @@ function PinnedProvider({ children }) {
     );
   };
 
-  const movePanel = (sourceIndex, destinationIndex) => {
-    const initialPanelOrder = [...pinnedPanels];
-    const finalPanelOrder = swap(initialPanelOrder, sourceIndex, destinationIndex);
-    setPinnedPanels(finalPanelOrder);
+  const movePanel = (event) => {
+    const { active, over } = event;
+
+    if (active.id !== over.id) {
+      setPinnedPanels((panels) => {
+        const oldIndex = panels.findIndex((panel) => panel.id === active.id);
+        const newIndex = panels.findIndex((panel) => panel.id === over.id);
+
+        return arrayMove(panels, oldIndex, newIndex);
+      });
+    }
   };
 
   return <PinnedContext.Provider value={{ pinnedPanels, togglePin, movePanel }}>{children}</PinnedContext.Provider>;
@@ -288,50 +305,77 @@ function usePinned() {
 
 function PinnedPanels() {
   let { pinnedPanels, movePanel } = usePinned();
-  const [ref, width] = useResizeObserver();
-  const itemsPerRow = Math.max(1, Math.floor(width / 408));
+  const [activePanel, setActivePanel] = useState(null);
 
-  const onChange = (sourceId, sourceIndex, targetIndex, targetId) => {
-    movePanel(sourceIndex, targetIndex);
+  const sensors = useSensors(useSensor(MouseSensor), useSensor(TouchSensor));
+
+  const handleDragStart = (event) => {
+    const panel = pinnedPanels.find((panel) => panel.id === event.active.id);
+    setActivePanel(panel);
+  };
+
+  const handleDragEnd = (event) => {
+    setActivePanel(null);
+    movePanel(event);
   };
 
   return (
-    <GridContextProvider onChange={onChange}>
-      <div ref={ref}>
-        <GridDropZone
-          id="PINNED-PANELS"
-          boxesPerRow={itemsPerRow}
-          rowHeight={408}
-          style={{ height: 408 * Math.ceil(pinnedPanels.length / itemsPerRow) }}
-        >
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+      onDragStart={handleDragStart}
+    >
+      <div
+        style={{
+          display: "grid",
+          width: "100%",
+          gap: "8px",
+          gridTemplateColumns: "400px repeat(auto-fill, 400px) 400px",
+        }}
+      >
+        <SortableContext items={pinnedPanels} strategy={rectSortingStrategy}>
           {pinnedPanels.map((panel) => (
-            <GridItem key={panel.id}>
-              <Panel id={panel.id} title={panel.title}>
-                {panel.children}
-              </Panel>
-            </GridItem>
+            <MovablePanel id={panel.id} title={panel.title}>
+              {panel.children}
+            </MovablePanel>
           ))}
-        </GridDropZone>
+          <DragOverlay>
+            {activePanel ? (
+              <MovablePanel id={activePanel.id} title={activePanel.title}>
+                {activePanel.children}
+              </MovablePanel>
+            ) : null}
+          </DragOverlay>
+        </SortableContext>
       </div>
-    </GridContextProvider>
+    </DndContext>
   );
 }
 
-const useResizeObserver = () => {
-  const ref = useRef();
-  const [width, setWidth] = useState(0);
+function MovablePanel({ id, title, children }) {
+  const { pinnedPanels, togglePin } = usePinned();
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: id });
 
-  useEffect(() => {
-    const resizeObserver = new ResizeObserver((entries) => {
-      if (entries[0]) {
-        setWidth(entries[0].contentRect.width);
-      }
-    });
+  const isPinned = pinnedPanels.some((panel) => panel.title === title);
 
-    if (ref.current) {
-      resizeObserver.observe(ref.current);
-    }
-  }, [ref]);
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? "100" : "auto",
+    opacity: isDragging ? 0.3 : 1,
+    ...styles.panel,
+  };
 
-  return [ref, width];
-};
+  return (
+    <div ref={setNodeRef} key={id} style={style}>
+      <div style={styles.panelHeader}>
+        <input type="checkbox" checked={isPinned} onChange={() => togglePin({ id: id, title, children })} />
+        <div {...listeners} {...attributes} style={styles.movableArea}>
+          <strong>{title}</strong>
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
